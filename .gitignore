@@ -1,0 +1,33 @@
+# Python cache files
+__pycache__/
+*.py[cod]
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# Environment variables and secrets
+.env
+.env.*
+
+# Dataset and cached token IDs
+data/*
+!data/.gitkeep
+
+# Model checkpoints
+checkpoints/*
+!checkpoints/.gitkeep
+*.pt
+*.pth
+*.ckpt
+
+# Editor and operating system files
+.vscode/
+.DS_Store
+Thumbs.db
+
+# Python test artifacts
+.pytest_cache/
+.coverage
+htmlcov/
