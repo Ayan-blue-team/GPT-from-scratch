@@ -12,6 +12,7 @@ class GPTConfig:
     n_embd: int = 128
     dropout: float = 0.1
 
+
 class CausalSelfAttentionK(nn.Module):
     def __init__(self, config: GPTConfig):
         super().__init__()
@@ -22,68 +23,62 @@ class CausalSelfAttentionK(nn.Module):
         self.n_head = config.n_head
         self.head_dim = config.n_embd // config.n_head
 
-        # Project each input vector into Query, Key, and Value
         self.qkv = nn.Linear(
-            config.n_embd,
-            3 * config.n_embd,
-            bias=False,
+            config.n_embd, 3 * config.n_embd, bias=False
         )
-
-        # Project the combined attention heads back to embedding size
         self.out_proj = nn.Linear(
-            config.n_embd,
-            config.n_embd,
-            bias=False,
+            config.n_embd, config.n_embd, bias=False
         )
-
         self.attn_dropout = nn.Dropout(config.dropout)
         self.resid_dropout = nn.Dropout(config.dropout)
 
-    def forward(self, x: torch.Tensor) -> torch.Tensor:
+    def forward(
+        self,
+        x: torch.Tensor,
+        cache: tuple[torch.Tensor, torch.Tensor] | None = None,
+        use_cache: bool = False,
+    ) -> torch.Tensor | tuple[
+        torch.Tensor, tuple[torch.Tensor, torch.Tensor]
+    ]:
         batch_size, seq_len, n_embd = x.shape
 
-        # [B, T, 3*d] -> [B, T, 3, H, head_dim]
         qkv = self.qkv(x).view(
-            batch_size,
-            seq_len,
-            3,
-            self.n_head,
-            self.head_dim,
+            batch_size, seq_len, 3, self.n_head, self.head_dim
         )
-
-        # Separate Q, K, V and arrange each as [B, H, T, head_dim]
         q, k, v = qkv.permute(2, 0, 3, 1, 4).unbind(dim=0)
 
-        # Similarity scores between every query and key 
+        past_len = 0
+        if cache is not None:
+            past_k, past_v = cache
+            past_len = past_k.size(-2)
+            k = torch.cat((past_k, k), dim=-2)
+            v = torch.cat((past_v, v), dim=-2)
+
+        present = (k, v) if use_cache else None
+
         scores = (q @ k.transpose(-2, -1)) * (self.head_dim ** -0.5)
 
-        # Prevent each position from attending to future positions
-        causal_mask = torch.tril(
-            torch.ones(
-                seq_len,
-                seq_len,
-                device=x.device,
-                dtype=torch.bool,
-            )
-        )
+        # Cached queries can attend to all past keys and to earlier
+        # positions in the current chunk, but never to future positions.
+        key_positions = torch.arange(k.size(-2), device=x.device)
+        query_positions = past_len + torch.arange(seq_len, device=x.device)
+        causal_mask = key_positions.unsqueeze(0) <= query_positions.unsqueeze(1)
         scores = scores.masked_fill(~causal_mask, float("-inf"))
 
-        # Turn allowed scores into attention probabilities 
         weights = torch.softmax(scores, dim=-1)
         weights = self.attn_dropout(weights)
 
-        # Combine values using the attetion probabilites 
         output = weights @ v
-
-        # merge heads
         output = output.transpose(1, 2).contiguous().view(
-            batch_size,
-            seq_len,
-            n_embd,
+            batch_size, seq_len, n_embd
         )
-
         output = self.out_proj(output)
-        return self.resid_dropout(output)
+        output = self.resid_dropout(output)
+
+        if use_cache:
+            return output, present
+        return output
+
 
 class MLP(nn.Module):
     def __init__(self, config: GPTConfig):
@@ -107,19 +102,36 @@ class MLP(nn.Module):
         x = self.fc2(x)
         return self.dropout(x)
 
+
 class Block(nn.Module):
     def __init__(self, config: GPTConfig):
         super().__init__()
-
         self.ln1 = nn.LayerNorm(config.n_embd)
         self.attn = CausalSelfAttentionK(config)
         self.ln2 = nn.LayerNorm(config.n_embd)
         self.mlp = MLP(config)
 
-    def forward(self, x: torch.Tensor) -> torch.Tensor:
-        x = x + self.attn(self.ln1(x))
+    def forward(
+        self,
+        x: torch.Tensor,
+        cache: tuple[torch.Tensor, torch.Tensor] | None = None,
+        use_cache: bool = False,
+    ):
+        if use_cache:
+            attn_out, present = self.attn(
+                self.ln1(x), cache=cache, use_cache=True
+            )
+            x = x + attn_out
+        else:
+            x = x + self.attn(self.ln1(x))
+            present = None
+
         x = x + self.mlp(self.ln2(x))
+
+        if use_cache:
+            return x, present
         return x
+
 
 class GPT(nn.Module):
     def __init__(self, config: GPTConfig):
@@ -164,25 +176,42 @@ class GPT(nn.Module):
             torch.nn.init.ones_(module.weight)
             torch.nn.init.zeros_(module.bias)
 
+    
     def forward(
         self,
         idx: torch.Tensor,
         targets: torch.Tensor | None = None,
-    ) -> tuple[torch.Tensor, torch.Tensor | None]:
+        cache: list[tuple[torch.Tensor, torch.Tensor] | None] | None = None,
+        use_cache: bool = False,
+    ):
         batch_size, seq_len = idx.shape
 
-        if seq_len > self.config.block_size:
+        past_len = 0
+        if cache is not None:
+            if len(cache) != len(self.blocks):
+                raise ValueError("Cache must contain one entry per block")
+            if cache[0] is not None:
+                past_len = cache[0][0].size(-2)
+
+        if past_len + seq_len > self.config.block_size:
             raise ValueError("Sequence length exceeds block_size")
 
-        positions = torch.arange(seq_len, device=idx.device)
-        token_embeddings = self.token_embedding(idx)
-        position_embeddings = self.position_embedding(positions)
-
-        x = token_embeddings + position_embeddings
+        positions = torch.arange(
+            past_len, past_len + seq_len, device=idx.device
+        )
+        x = self.token_embedding(idx) + self.position_embedding(positions)
         x = self.embedding_dropout(x)
 
-        for block in self.blocks:
-            x = block(x)
+        new_cache = []
+        for i, block in enumerate(self.blocks):
+            layer_cache = cache[i] if cache is not None else None
+            if use_cache:
+                x, present = block(
+                    x, cache=layer_cache, use_cache=True
+                )
+                new_cache.append(present)
+            else:
+                x = block(x)
 
         x = self.final_norm(x)
         logits = self.lm_head(x)
@@ -194,7 +223,10 @@ class GPT(nn.Module):
                 targets.reshape(-1),
             )
 
+        if use_cache:
+            return logits, loss, new_cache
         return logits, loss
+
 
     def num_params(self) -> int:
         return sum(
