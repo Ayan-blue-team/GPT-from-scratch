@@ -11,6 +11,7 @@ class GPTConfig:
     n_head: int = 4
     n_embd: int = 128
     dropout: float = 0.1
+    ablation: str = "none"
 
 
 class CausalSelfAttentionK(nn.Module):
@@ -102,7 +103,6 @@ class MLP(nn.Module):
         x = self.fc2(x)
         return self.dropout(x)
 
-
 class Block(nn.Module):
     def __init__(self, config: GPTConfig):
         super().__init__()
@@ -111,27 +111,43 @@ class Block(nn.Module):
         self.ln2 = nn.LayerNorm(config.n_embd)
         self.mlp = MLP(config)
 
+        self.post_ln = getattr(config, "ablation", "none") == "post_ln"
+
     def forward(
         self,
         x: torch.Tensor,
         cache: tuple[torch.Tensor, torch.Tensor] | None = None,
         use_cache: bool = False,
     ):
-        if use_cache:
-            attn_out, present = self.attn(
-                self.ln1(x), cache=cache, use_cache=True
-            )
-            x = x + attn_out
-        else:
-            x = x + self.attn(self.ln1(x))
-            present = None
+        if self.post_ln:
+            # A2: Post-LN
+            if use_cache:
+                attn_out, present = self.attn(
+                    x, cache=cache, use_cache=True
+                )
+            else:
+                attn_out = self.attn(x)
+                present = None
 
-        x = x + self.mlp(self.ln2(x))
+            x = self.ln1(x + attn_out)
+            x = self.ln2(x + self.mlp(x))
+
+        else:
+            # Default: Pre-LN
+            if use_cache:
+                attn_out, present = self.attn(
+                    self.ln1(x), cache=cache, use_cache=True
+                )
+                x = x + attn_out
+            else:
+                x = x + self.attn(self.ln1(x))
+                present = None
+
+            x = x + self.mlp(self.ln2(x))
 
         if use_cache:
             return x, present
         return x
-
 
 class GPT(nn.Module):
     def __init__(self, config: GPTConfig):
@@ -145,13 +161,18 @@ class GPT(nn.Module):
             config.n_embd,
         )
 
-        # Give each position a learned vector.
-        self.position_embedding = nn.Embedding(
-            config.block_size,
-            config.n_embd,
+        self.use_position_embedding = (
+            getattr(config, "ablation", "none")
+            != "no_position_embedding"
         )
 
-        # Apply dropout to the combined embeddings.
+        self.position_embedding = (
+            nn.Embedding(config.block_size, config.n_embd)
+            if self.use_position_embedding
+            else None
+        )
+
+        # Apply dropout to the embeddings.
         self.embedding_dropout = nn.Dropout(config.dropout)
 
         self.blocks = nn.ModuleList([
@@ -161,27 +182,34 @@ class GPT(nn.Module):
         self.final_norm = nn.LayerNorm(config.n_embd)
 
         self.lm_head = nn.Linear(
-            config.n_embd, config.vocab_size, bias=False
+            config.n_embd,
+            config.vocab_size,
+            bias=False,
         )
 
-        # The output weights to the token embedding weights
+        # Tie output weights to the token embedding weights.
         self.lm_head.weight = self.token_embedding.weight
 
         self.apply(self._init_weights)
 
     def _init_weights(self, module):
         if isinstance(module, (nn.Linear, nn.Embedding)):
-            torch.nn.init.normal_(module.weight, mean=0.0, std=0.02)
+            torch.nn.init.normal_(
+                module.weight,
+                mean=0.0,
+                std=0.02,
+            )
         elif isinstance(module, nn.LayerNorm):
             torch.nn.init.ones_(module.weight)
             torch.nn.init.zeros_(module.bias)
 
-    
     def forward(
         self,
         idx: torch.Tensor,
         targets: torch.Tensor | None = None,
-        cache: list[tuple[torch.Tensor, torch.Tensor] | None] | None = None,
+        cache: list[
+            tuple[torch.Tensor, torch.Tensor] | None
+        ] | None = None,
         use_cache: bool = False,
     ):
         batch_size, seq_len = idx.shape
@@ -189,7 +217,10 @@ class GPT(nn.Module):
         past_len = 0
         if cache is not None:
             if len(cache) != len(self.blocks):
-                raise ValueError("Cache must contain one entry per block")
+                raise ValueError(
+                    "Cache must contain one entry per block"
+                )
+
             if cache[0] is not None:
                 past_len = cache[0][0].size(-2)
 
@@ -197,17 +228,30 @@ class GPT(nn.Module):
             raise ValueError("Sequence length exceeds block_size")
 
         positions = torch.arange(
-            past_len, past_len + seq_len, device=idx.device
+            past_len,
+            past_len + seq_len,
+            device=idx.device,
         )
-        x = self.token_embedding(idx) + self.position_embedding(positions)
+
+        # Token embeddings are always present.
+        x = self.token_embedding(idx)
+
+        # A1 disables the addition of positional embeddings.
+        if self.use_position_embedding:
+            x = x + self.position_embedding(positions)
+
         x = self.embedding_dropout(x)
 
         new_cache = []
+
         for i, block in enumerate(self.blocks):
             layer_cache = cache[i] if cache is not None else None
+
             if use_cache:
                 x, present = block(
-                    x, cache=layer_cache, use_cache=True
+                    x,
+                    cache=layer_cache,
+                    use_cache=True,
                 )
                 new_cache.append(present)
             else:
@@ -225,8 +269,8 @@ class GPT(nn.Module):
 
         if use_cache:
             return logits, loss, new_cache
-        return logits, loss
 
+        return logits, loss
 
     def num_params(self) -> int:
         return sum(
