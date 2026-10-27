@@ -147,6 +147,7 @@ def train(config_path):
         n_head=config["n_head"],
         n_embd=config["n_embd"],
         dropout=config["dropout"],
+        ablation=config.get("ablation", "none"),
     )
     model = GPT(model_config).to(device)
     optimizer = create_optimizer(model, config["max_lr"])
