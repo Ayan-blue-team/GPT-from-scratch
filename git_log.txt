@@ -1,3 +1,31 @@
+commit 6a92a4eebeae0b137ced3ee2f72979f2f54789c1
+Author: Priyanshu Sharma <princesharma99876@gmail.com>
+Date:   2026-10-29 00:12:53 +0530
+
+    git
+
+ git_log.txt | 127 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 127 insertions(+)
+
+commit 73e4b7a96a0940339c41bb28bcf2c34f4fc59068
+Author: Priyanshu Sharma <princesharma99876@gmail.com>
+Date:   2026-10-29 00:09:30 +0530
+
+    report and disclosure
+
+ ai_disclosure.md   |  23 +++++++
+ reports/Report.pdf | 175 +++++++++++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 198 insertions(+)
+
+commit 2ce746e2b6838afa3b701c42282d08fea310e4cd
+Author: Priyanshu Sharma <princesharma99876@gmail.com>
+Date:   2026-10-28 16:42:21 +0530
+
+    updated
+
+ logs/runs.csv | 2 --
+ 1 file changed, 2 deletions(-)
+
 commit 26eb76721773e41440983a802b98663b7ad3cd3a
 Author: Priyanshu Sharma <princesharma99876@gmail.com>
 Date:   2026-10-27 13:05:19 +0530
