@@ -1,0 +1,127 @@
+commit 26eb76721773e41440983a802b98663b7ad3cd3a
+Author: Priyanshu Sharma <princesharma99876@gmail.com>
+Date:   2026-10-27 13:05:19 +0530
+
+    plots done
+
+ figures/loss_curves.png   | Bin 0 -> 273187 bytes
+ figures/model_scaling.png | Bin 0 -> 88522 bytes
+ plot_results.py           |  79 ++++++++++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 79 insertions(+)
+
+commit 72c85fcda8009c3e1e22e23380081e0d826ce8a9
+Author: Priyanshu Sharma <princesharma99876@gmail.com>
+Date:   2026-10-27 13:04:34 +0530
+
+    completed
+
+ configs/A1.json | 15 +++++++++++++++
+ configs/A2.json | 15 +++++++++++++++
+ configs/A3.json | 16 ++++++++++++++++
+ configs/A4.json | 16 ++++++++++++++++
+ configs/A5.json | 16 ++++++++++++++++
+ configs/L.json  | 15 +++++++++++++++
+ configs/S.json  | 16 ++++++++++++++++
+ logs/A1.csv     | 32 ++++++++++++++++++++++++++++++++
+ logs/A2.csv     | 32 ++++++++++++++++++++++++++++++++
+ logs/A3.csv     | 32 ++++++++++++++++++++++++++++++++
+ logs/A4.csv     | 32 ++++++++++++++++++++++++++++++++
+ logs/A5.csv     | 32 ++++++++++++++++++++++++++++++++
+ logs/L.csv      | 32 ++++++++++++++++++++++++++++++++
+ logs/S.csv      | 32 ++++++++++++++++++++++++++++++++
+ 14 files changed, 333 insertions(+)
+
+commit 61b55c9baeeb7a1170e019608e09dd8387404e8f
+Author: Priyanshu Sharma <princesharma99876@gmail.com>
+Date:   2026-10-27 13:02:57 +0530
+
+    runs completed
+
+ runs.csv | 7 +++++++
+ 1 file changed, 7 insertions(+)
+
+commit be0a800922a1e4fe3d58848e4a5e1155e5eb1a6d
+Author: Priyanshu Sharma <princesharma99876@gmail.com>
+Date:   2026-10-27 13:01:49 +0530
+
+    updated train
+
+ train.py | 1 +
+ 1 file changed, 1 insertion(+)
+
+commit 05bb94b6e4a65e3be1907875d37cb3e3ea943cd4
+Author: Priyanshu Sharma <princesharma99876@gmail.com>
+Date:   2026-10-27 12:20:27 +0530
+
+    updated main
+
+ model.py | 94 +++++++++++++++++++++++++++++++++++++++++++++++-----------------
+ 1 file changed, 69 insertions(+), 25 deletions(-)
+
+commit fa32e5c1bc654d20bbd1dbe5ab04b2e37cafb076
+Author: Priyanshu Sharma <princesharma99876@gmail.com>
+Date:   2026-10-26 21:43:08 +0530
+
+    Part D completed
+
+ generate.py | 247 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ samples.txt |  11 +++
+ 2 files changed, 258 insertions(+)
+
+commit 8abb9632f96e22835e7e886a9c5c407b3110f4d0
+Author: Priyanshu Sharma <princesharma99876@gmail.com>
+Date:   2026-10-26 21:42:28 +0530
+
+    updated
+
+ model.py | 132 +++++++++++++++++++++++++++++++++++++++------------------------
+ 1 file changed, 82 insertions(+), 50 deletions(-)
+
+commit e21c2bad0f09e988a3e22cdaa55d2b91c21274f6
+Author: Priyanshu Sharma <princesharma99876@gmail.com>
+Date:   2026-10-26 21:16:57 +0530
+
+    bigram done
+
+ bigram.py | 79 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ runs.csv  |  3 +++
+ 2 files changed, 82 insertions(+)
+
+commit 5d90131375dd7e698873ba40c197b3438789134a
+Author: Priyanshu Sharma <princesharma99876@gmail.com>
+Date:   2026-10-25 23:46:17 +0530
+
+    training results
+
+ logs/M.csv    | 32 ++++++++++++++++++++++++++++++++
+ logs/runs.csv |  2 ++
+ 2 files changed, 34 insertions(+)
+
+commit 9627d4cb00680718686df687831e973d8d497e39
+Author: Priyanshu Sharma <princesharma99876@gmail.com>
+Date:   2026-10-25 23:10:03 +0530
+
+    Training
+
+ train.py | 264 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++-
+ 1 file changed, 262 insertions(+), 2 deletions(-)
+
+commit 4f4be52ccf8e3346f91a1a4f1d28b639c4de5452
+Author: Priyanshu Sharma <princesharma99876@gmail.com>
+Date:   2026-10-25 08:37:58 +0530
+
+    done part A and B
+
+ .gitignore         |   33 +
+ README.md          |    0
+ bigram.py          |    0
+ configs/M.json     |   16 +
+ generate.py        |    0
+ model.py           |  203 ++++
+ prepare_data.py    |   31 +
+ requirements.txt   |    4 +
+ tokenizer.json     | 3077 ++++++++++++++++++++++++++++++++++++++++++++++++++++
+ tokenizer.py       |  137 +++
+ train.py           |   13 +
+ train_tokenizer.py |   41 +
+ 12 files changed, 3555 insertions(+)
